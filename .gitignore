@@ -3,3 +3,4 @@ VSDebug
 *.ncb
 *.suo
 *.user
+.vs
