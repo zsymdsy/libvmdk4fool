@@ -1,7 +1,7 @@
 /*
  * Python object wrapper of libvmdk_handle_t
  *
- * Copyright (C) 2009-2021, Joachim Metz <joachim.metz@gmail.com>
+ * Copyright (C) 2009-2022, Joachim Metz <joachim.metz@gmail.com>
  *
  * Refer to AUTHORS for acknowledgements.
  *
@@ -87,14 +87,6 @@ PyMethodDef pyvmdk_handle_object_methods[] = {
 	  "open_extent_data_files() -> None\n"
 	  "\n"
 	  "Opens the extent data files." },
-
-/* TODO remove */
-	{ "open_extent_data_files_file_objects",
-	  (PyCFunction) pyvmdk_handle_open_extent_data_files_as_file_objects,
-	  METH_VARARGS | METH_KEYWORDS,
-	  "open_extent_data_files_file_objects(file_objects) -> None\n"
-	  "\n"
-	  "Opens extent data files using a list of file-like objects." },
 
 	{ "open_extent_data_files_as_file_objects",
 	  (PyCFunction) pyvmdk_handle_open_extent_data_files_as_file_objects,

@@ -1,7 +1,7 @@
 /*
  * Descriptor file functions
  *
- * Copyright (C) 2009-2021, Joachim Metz <joachim.metz@gmail.com>
+ * Copyright (C) 2009-2022, Joachim Metz <joachim.metz@gmail.com>
  *
  * Refer to AUTHORS for acknowledgements.
  *
@@ -27,7 +27,7 @@
 
 #include "libvmdk_definitions.h"
 #include "libvmdk_descriptor_file.h"
-#include "libvmdk_extent_descriptor.h"
+#include "libvmdk_extent_values.h"
 #include "libvmdk_libcdata.h"
 #include "libvmdk_libcerror.h"
 #include "libvmdk_libclocale.h"
@@ -106,20 +106,6 @@ int libvmdk_descriptor_file_initialize(
 
 		return( -1 );
 	}
-	if( libcdata_array_initialize(
-	     &( ( *descriptor_file )->extents_array ),
-	     0,
-	     error ) != 1 )
-	{
-		libcerror_error_set(
-		 error,
-		 LIBCERROR_ERROR_DOMAIN_RUNTIME,
-		 LIBCERROR_RUNTIME_ERROR_INITIALIZE_FAILED,
-		 "%s: unable to create extents array.",
-		 function );
-
-		goto on_error;
-	}
 	return( 1 );
 
 on_error:
@@ -161,20 +147,6 @@ int libvmdk_descriptor_file_free(
 			memory_free(
 			 ( *descriptor_file )->parent_filename );
 		}
-		if( libcdata_array_free(
-		     &( ( *descriptor_file )->extents_array ),
-		     (int (*)(intptr_t **, libcerror_error_t **)) &libvmdk_internal_extent_descriptor_free,
-		     error ) != 1 )
-		{
-			libcerror_error_set(
-			 error,
-			 LIBCERROR_ERROR_DOMAIN_RUNTIME,
-			 LIBCERROR_RUNTIME_ERROR_FINALIZE_FAILED,
-			 "%s: unable to free extents array.",
-			 function );
-
-			result = -1;
-		}
 		memory_free(
 		 *descriptor_file );
 
@@ -186,13 +158,14 @@ int libvmdk_descriptor_file_free(
 /* Reads the descriptor file
  * Returns the 1 if succesful or -1 on error
  */
-int libvmdk_descriptor_file_read(
+int libvmdk_descriptor_file_read_file_io_handle(
      libvmdk_descriptor_file_t *descriptor_file,
      libbfio_handle_t *file_io_handle,
+     libcdata_array_t *extents_values_array,
      libcerror_error_t **error )
 {
 	uint8_t *descriptor_data = NULL;
-	static char *function    = "libvmdk_descriptor_file_read";
+	static char *function    = "libvmdk_descriptor_file_read_file_io_handle";
 	size64_t file_size       = 0;
 	ssize_t read_count       = 0;
 
@@ -269,6 +242,7 @@ int libvmdk_descriptor_file_read(
 	     descriptor_file,
 	     (char *) descriptor_data,
 	     (size_t) file_size,
+	     extents_values_array,
 	     error ) != 1 )
 	{
 		libcerror_error_set(
@@ -303,6 +277,7 @@ int libvmdk_descriptor_file_read_string(
      libvmdk_descriptor_file_t *descriptor_file,
      const char *value_string,
      size_t value_string_size,
+     libcdata_array_t *extents_values_array,
      libcerror_error_t **error )
 {
 	libcsplit_narrow_split_string_t *lines = NULL;
@@ -388,6 +363,7 @@ int libvmdk_descriptor_file_read_string(
 	     lines,
 	     number_of_lines,
 	     &line_index,
+	     extents_values_array,
 	     error ) != 1 )
 	{
 		libcerror_error_set(
@@ -1372,15 +1348,16 @@ int libvmdk_descriptor_file_read_extents(
      libcsplit_narrow_split_string_t *lines,
      int number_of_lines,
      int *line_index,
+     libcdata_array_t *extents_values_array,
      libcerror_error_t **error )
 {
-	libvmdk_extent_descriptor_t *extent_descriptor = NULL;
-	static char *function                          = "libvmdk_descriptor_file_read_extents";
-	char *line_string_segment                      = NULL;
-	size_t line_string_segment_index               = 0;
-	size_t line_string_segment_size                = 0;
-	int entry_index                                = 0;
-	int safe_line_index                            = 0;
+	libvmdk_extent_values_t *extent_values = NULL;
+	static char *function                  = "libvmdk_descriptor_file_read_extents";
+	char *line_string_segment              = NULL;
+	size_t line_string_segment_index       = 0;
+	size_t line_string_segment_size        = 0;
+	int entry_index                        = 0;
+	int safe_line_index                    = 0;
 
 	if( descriptor_file == NULL )
 	{
@@ -1523,15 +1500,15 @@ int libvmdk_descriptor_file_read_extents(
 	safe_line_index++;
 
 	if( libcdata_array_empty(
-	     descriptor_file->extents_array,
-	     (int (*)(intptr_t **, libcerror_error_t **)) &libvmdk_internal_extent_descriptor_free,
+	     extents_values_array,
+	     (int (*)(intptr_t **, libcerror_error_t **)) &libvmdk_extent_values_free,
 	     error ) != 1 )
 	{
 		libcerror_error_set(
 		 error,
 		 LIBCERROR_ERROR_DOMAIN_RUNTIME,
 		 LIBCERROR_RUNTIME_ERROR_FINALIZE_FAILED,
-		 "%s: unable to empty extents array.",
+		 "%s: unable to empty extents values array.",
 		 function );
 
 		goto on_error;
@@ -1645,21 +1622,21 @@ int libvmdk_descriptor_file_read_extents(
 		 */
 		line_string_segment[ line_string_segment_size - 1 ] = 0;
 
-		if( libvmdk_extent_descriptor_initialize(
-		     &extent_descriptor,
+		if( libvmdk_extent_values_initialize(
+		     &extent_values,
 		     error ) != 1 )
 		{
 			libcerror_error_set(
 			 error,
 			 LIBCERROR_ERROR_DOMAIN_RUNTIME,
 			 LIBCERROR_RUNTIME_ERROR_INITIALIZE_FAILED,
-			 "%s: unable to create extent descriptor.",
+			 "%s: unable to create extent values.",
 			 function );
 
 			goto on_error;
 		}
-		if( libvmdk_extent_descriptor_read(
-		     extent_descriptor,
+		if( libvmdk_extent_values_read(
+		     extent_values,
 		     &( line_string_segment[ line_string_segment_index ] ),
 		     line_string_segment_size - line_string_segment_index,
 		     descriptor_file->encoding,
@@ -1669,31 +1646,31 @@ int libvmdk_descriptor_file_read_extents(
 			 error,
 			 LIBCERROR_ERROR_DOMAIN_IO,
 			 LIBCERROR_IO_ERROR_READ_FAILED,
-			 "%s: unable to read extent descriptor from line: %d.",
+			 "%s: unable to read extent values from line: %d.",
 			 function,
 			 safe_line_index );
 
 			goto on_error;
 		}
 /* TODO refactor by get_size function */
-		descriptor_file->media_size += ( (libvmdk_internal_extent_descriptor_t *) extent_descriptor )->size;
+		descriptor_file->media_size += extent_values->size;
 
 		if( libcdata_array_append_entry(
-		     descriptor_file->extents_array,
+		     extents_values_array,
 		     &entry_index,
-		     (intptr_t *) extent_descriptor,
+		     (intptr_t *) extent_values,
 		     error ) != 1 )
 		{
 			libcerror_error_set(
 			 error,
 			 LIBCERROR_ERROR_DOMAIN_RUNTIME,
 			 LIBCERROR_RUNTIME_ERROR_APPEND_FAILED,
-			 "%s: unable to append extent descriptor to extents array.",
+			 "%s: unable to append extent values to array.",
 			 function );
 
 			goto on_error;
 		}
-		extent_descriptor = NULL;
+		extent_values = NULL;
 
 		safe_line_index++;
 	}
@@ -1702,15 +1679,15 @@ int libvmdk_descriptor_file_read_extents(
 	return( 1 );
 
 on_error:
-	if( extent_descriptor != NULL )
+	if( extent_values != NULL )
 	{
-		libvmdk_internal_extent_descriptor_free(
-		 (libvmdk_internal_extent_descriptor_t **) &extent_descriptor,
+		libvmdk_extent_values_free(
+		 &extent_values,
 		 NULL );
 	}
 	libcdata_array_empty(
-	 descriptor_file->extents_array,
-	 (int (*)(intptr_t **, libcerror_error_t **)) &libvmdk_internal_extent_descriptor_free,
+	 extents_values_array,
+	 (int (*)(intptr_t **, libcerror_error_t **)) &libvmdk_extent_values_free,
 	 NULL );
 
 	return( -1 );
@@ -2530,85 +2507,6 @@ int libvmdk_descriptor_file_read_disk_database(
 	return( 1 );
 }
 
-/* Retrieves the number of extents
- * Returns 1 if successful or -1 on error
- */
-int libvmdk_descriptor_file_get_number_of_extents(
-     libvmdk_descriptor_file_t *descriptor_file,
-     int *number_of_extents,
-     libcerror_error_t **error )
-{
-	static char *function = "libvmdk_descriptor_file_get_number_of_extents";
-
-	if( descriptor_file == NULL )
-	{
-		libcerror_error_set(
-		 error,
-		 LIBCERROR_ERROR_DOMAIN_ARGUMENTS,
-		 LIBCERROR_ARGUMENT_ERROR_INVALID_VALUE,
-		 "%s: invalid descriptor file.",
-		 function );
-
-		return( -1 );
-	}
-	if( libcdata_array_get_number_of_entries(
-	     descriptor_file->extents_array,
-	     number_of_extents,
-	     error ) != 1 )
-	{
-		libcerror_error_set(
-		 error,
-		 LIBCERROR_ERROR_DOMAIN_RUNTIME,
-		 LIBCERROR_RUNTIME_ERROR_GET_FAILED,
-		 "%s: unable to retrieve number of entries in extents array.",
-		 function );
-
-		return( -1 );
-	}
-	return( 1 );
-}
-
-/* Retrieves a specific extent
- * Returns 1 if successful or -1 on error
- */
-int libvmdk_descriptor_file_get_extent_by_index(
-     libvmdk_descriptor_file_t *descriptor_file,
-     int extent_index,
-     libvmdk_internal_extent_descriptor_t **extent_descriptor,
-     libcerror_error_t **error )
-{
-	static char *function = "libvmdk_descriptor_file_get_extent_by_index";
-
-	if( descriptor_file == NULL )
-	{
-		libcerror_error_set(
-		 error,
-		 LIBCERROR_ERROR_DOMAIN_ARGUMENTS,
-		 LIBCERROR_ARGUMENT_ERROR_INVALID_VALUE,
-		 "%s: invalid descriptor file.",
-		 function );
-
-		return( -1 );
-	}
-	if( libcdata_array_get_entry_by_index(
-	     descriptor_file->extents_array,
-	     extent_index,
-	     (intptr_t **) extent_descriptor,
-	     error ) != 1 )
-	{
-		libcerror_error_set(
-		 error,
-		 LIBCERROR_ERROR_DOMAIN_RUNTIME,
-		 LIBCERROR_RUNTIME_ERROR_GET_FAILED,
-		 "%s: unable to retrieve entry: %d from extents array.",
-		 function,
-		 extent_index );
-
-		return( -1 );
-	}
-	return( 1 );
-}
-
 /* Retrieves the parent content identifier
  * Returns 1 if successful, 0 if not available or -1 on error
  */
@@ -2831,6 +2729,80 @@ int libvmdk_descriptor_file_get_utf16_parent_filename(
 
 		return( -1 );
 	}
+	return( 1 );
+}
+
+/* Retrieves the disk type
+ * Returns 1 if successful or -1 on error
+ */
+int libvmdk_descriptor_file_get_disk_type(
+     libvmdk_descriptor_file_t *descriptor_file,
+     int *disk_type,
+     libcerror_error_t **error )
+{
+	static char *function = "libvmdk_descriptor_file_get_disk_type";
+
+	if( descriptor_file == NULL )
+	{
+		libcerror_error_set(
+		 error,
+		 LIBCERROR_ERROR_DOMAIN_ARGUMENTS,
+		 LIBCERROR_ARGUMENT_ERROR_INVALID_VALUE,
+		 "%s: invalid descriptor file.",
+		 function );
+
+		return( -1 );
+	}
+	if( disk_type == NULL )
+	{
+		libcerror_error_set(
+		 error,
+		 LIBCERROR_ERROR_DOMAIN_ARGUMENTS,
+		 LIBCERROR_ARGUMENT_ERROR_INVALID_VALUE,
+		 "%s: invalid disk type.",
+		 function );
+
+		return( -1 );
+	}
+	*disk_type = descriptor_file->disk_type;
+
+	return( 1 );
+}
+
+/* Retrieves the media size
+ * Returns 1 if successful or -1 on error
+ */
+int libvmdk_descriptor_file_get_media_size(
+     libvmdk_descriptor_file_t *descriptor_file,
+     size64_t *media_size,
+     libcerror_error_t **error )
+{
+	static char *function = "libvmdk_descriptor_file_get_media_size";
+
+	if( descriptor_file == NULL )
+	{
+		libcerror_error_set(
+		 error,
+		 LIBCERROR_ERROR_DOMAIN_ARGUMENTS,
+		 LIBCERROR_ARGUMENT_ERROR_INVALID_VALUE,
+		 "%s: invalid descriptor file.",
+		 function );
+
+		return( -1 );
+	}
+	if( media_size == NULL )
+	{
+		libcerror_error_set(
+		 error,
+		 LIBCERROR_ERROR_DOMAIN_ARGUMENTS,
+		 LIBCERROR_ARGUMENT_ERROR_INVALID_VALUE,
+		 "%s: invalid media size.",
+		 function );
+
+		return( -1 );
+	}
+	*media_size = descriptor_file->media_size;
+
 	return( 1 );
 }
 
