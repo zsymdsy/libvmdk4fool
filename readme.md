@@ -8,7 +8,7 @@ libvmdk-msvc傻瓜编译包
 # 所使用到的库版本信息:
 |库|版本|链接|
 |--|--|--|
-|libvmdk|alpha-20210807|[libvmdk-alpha-20210807](https://github.com/libyal/libvmdk/archive/refs/tags/20210807.zip)|
+|libvmdk|libvmdk@afed9e4|[afed9e4](https://github.com/libyal/libvmdk/tree/afed9e4ff876b3f1b21f179136dddcd6d917b88b)|
 |dokan|1.5.0.3000|[Dokan-1.5.0.3000](https://github.com/dokan-dev/dokany/releases/download/v1.5.0.3000/DokanSetup.exe)|
 |zlib|1.2.12|[zlib-1.2.12](https://zlib.net/zlib1212.zip)|
 
