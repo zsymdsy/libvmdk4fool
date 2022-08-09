@@ -1123,6 +1123,44 @@ on_error:
 	return( -1 );
 }
 
+// 将文件名从路径中切割出来
+static system_character_t* libvmdk_internal_path_find_file_name(system_character_t* file_path, const size_t file_path_size, size_t* name_size)
+{
+    system_character_t* ptr1 = NULL;
+    system_character_t* ptr2 = NULL;
+    system_character_t* ptr3 = NULL;
+
+    ptr1 = system_string_search_character_reverse(file_path, (system_character_t)'\\', file_path_size - 1);
+    ptr2 = system_string_search_character_reverse(file_path, (system_character_t)'/', file_path_size - 1);
+
+    do 
+    {
+        if (ptr1 && ptr2)
+        {
+            ptr3 = ptr1 > ptr2 ? (ptr1 + 1) : (ptr2 + 1);
+            break;
+        }
+
+        if (ptr1)
+        {
+            ptr3 = ptr1 + 1;
+            break;
+        }
+
+        if (ptr2)
+        {
+            ptr3 = ptr2 + 1;
+            break;
+        }
+
+        ptr3 = file_path;
+
+    } while (FALSE);
+
+    *name_size = system_string_length(ptr3) + 1;
+    return ptr3;
+}
+
 /* Opens the extent data files
  * If the extent data filenames were not set explicitly this function assumes the extent data files
  * are in the same location as the descriptor file
@@ -1141,6 +1179,8 @@ int libvmdk_handle_open_extent_data_files(
 	int extent_index                              = 0;
 	int number_of_extents                         = 0;
 	int result                                    = 0;
+    system_character_t* alternate_filename_only   = NULL;
+    size_t alternate_filename_only_size           = 0;
 
 	if( handle == NULL )
 	{
@@ -1345,22 +1385,35 @@ int libvmdk_handle_open_extent_data_files(
 				extent_data_file_location      = NULL;
 				extent_data_file_location_size = 0;
 
+                //////////////////////////////////////////////////////////////////////////
+                // <PRE> BUG修复（@by 杜世玉 20220803）：KDMV原始文件名与现在的文件名不同，导致打开失败的问题修复
+                // KDMV格式的VMDK文件中记录了原始的VMDK文件名。
+                // 如果用户重命名了该VMDK文件，就会导致libvmdk找不到原始VMDK文件而失败。
+                // 此时libvmdk会尝试打开文件路径：alternate_filename（即当前要打开的VMDK文件名）
+                // 但问题是，官方代码在拼接路径时，没有考虑alternate_filename是绝对路径的情况。
+                // 拼接出来的效果如："E:\\E:\\1.vmdk"
+                // 所以这里需要先将alternate_filename中的文件名部分切割出来，然后进行拼接
+                alternate_filename_only = libvmdk_internal_path_find_file_name(
+                    extent_values->alternate_filename, extent_values->alternate_filename_size, &alternate_filename_only_size);
+                // </PRE> BUG修复（@by 杜世玉 20220803）：KDMV原始文件名与现在的文件名不同，导致打开失败的问题修复
+                //////////////////////////////////////////////////////////////////////////
+
 #if defined( HAVE_WIDE_SYSTEM_CHARACTER )
-				result = libvmdk_extent_table_join_extent_data_file_path_wide(
-				          internal_handle->extent_table,
-				          extent_values->alternate_filename,
-				          extent_values->alternate_filename_size,
-				          &extent_data_file_location,
-				          &extent_data_file_location_size,
-				          error );
+                result = libvmdk_extent_table_join_extent_data_file_path_wide(
+                    internal_handle->extent_table,
+                    alternate_filename_only,
+                    alternate_filename_only_size,
+                    &extent_data_file_location,
+                    &extent_data_file_location_size,
+                    error);
 #else
-				result = libvmdk_extent_table_join_extent_data_file_path(
-				          internal_handle->extent_table,
-				          extent_values->alternate_filename,
-				          extent_values->alternate_filename_size,
-				          &extent_data_file_location,
-				          &extent_data_file_location_size,
-				          error );
+                result = libvmdk_extent_table_join_extent_data_file_path(
+                    internal_handle->extent_table,
+                    alternate_filename_only,
+                    alternate_filename_only_size,
+                    &extent_data_file_location,
+                    &extent_data_file_location_size,
+                    error);
 #endif
 				if( result != 1 )
 				{
