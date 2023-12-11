@@ -780,7 +780,8 @@ int libvmdk_handle_open_wide(
 	 * the filename instead of the extent data filename in the descriptor file is used.
 	 */
 /* TODO thread lock */
-	if( internal_handle->disk_type == LIBVMDK_DISK_TYPE_MONOLITHIC_SPARSE )
+	if( ( internal_handle->disk_type == LIBVMDK_DISK_TYPE_MONOLITHIC_SPARSE )
+        || (internal_handle->disk_type == LIBVMDK_DISK_TYPE_STREAM_OPTIMIZED) )
 	{
 		if( libcdata_array_get_number_of_entries(
 		     internal_handle->extent_values_array,
@@ -1346,14 +1347,30 @@ int libvmdk_handle_open_extent_data_files(
 #endif
 			if( result != 1 )
 			{
-				libcerror_error_set(
-				 error,
-				 LIBCERROR_ERROR_DOMAIN_RUNTIME,
-				 LIBCERROR_RUNTIME_ERROR_INITIALIZE_FAILED,
-				 "%s: unable to create extent data file location.",
-				 function );
+                if ( NULL != extent_values->alternate_filename )
+                {
+                    if (NULL != extent_data_file_location)
+                    {
+                        memory_free(extent_data_file_location);
+                        extent_data_file_location = NULL;
+                        extent_data_file_location_size = 0;
+                    }
+                    extent_data_file_location_size = system_string_length(extent_values->alternate_filename);
+                    extent_data_file_location = system_string_allocate(extent_data_file_location_size + 1);
+                    system_string_copy(extent_data_file_location, extent_values->alternate_filename, extent_data_file_location_size);
+                    extent_data_file_location[extent_data_file_location_size] = 0;
+                }
+                else
+                {
+				    libcerror_error_set(
+				     error,
+				     LIBCERROR_ERROR_DOMAIN_RUNTIME,
+				     LIBCERROR_RUNTIME_ERROR_INITIALIZE_FAILED,
+				     "%s: unable to create extent data file location.",
+				     function );
 
-				goto on_error;
+				    goto on_error;
+                }
 			}
 #if defined( HAVE_WIDE_SYSTEM_CHARACTER )
 			result = libcfile_file_exists_wide(
